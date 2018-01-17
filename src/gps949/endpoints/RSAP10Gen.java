@@ -34,6 +34,7 @@ public class RSAP10Gen implements HttpHandler {
 					res.keyIndex = P10p.keyIndex;
 					res.P10 = P10p.P10;
 				} catch (Exception e) {
+					e.printStackTrace();
 				}
 			}
 		}

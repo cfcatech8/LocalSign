@@ -7,6 +7,8 @@ import org.eclipse.jface.dialogs.Dialog;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 
+import gps949.dlg.CertDlg;
+
 public class CertSelector {
 
 	public CertSelector(KeyStore ks, List<String> _aliases, AliasCan ac) {

@@ -1,4 +1,4 @@
-package gps949;
+package gps949.dlg;
 
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -17,6 +17,8 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
+
+import gps949.AliasCan;
 
 public class CertDlg extends Dialog {
 

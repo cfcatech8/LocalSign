@@ -17,6 +17,9 @@ import com.sun.org.apache.xml.internal.security.utils.Base64;
 
 import gps949.block.P10pack;
 import gps949.block.P7Sig;
+import gps949.dlg.DlgChannel;
+import gps949.dlg.pwdDlg;
+import gps949.dlg.waitDlg;
 import sun.security.mscapi.SunMSCAPI;
 import sun.security.pkcs.ContentInfo;
 import sun.security.pkcs.PKCS7;
@@ -120,9 +123,27 @@ public class CAPI {
 
 	}
 
-	public static P10pack RSAP10Gen(String keyLen, String DN) {
+	public static P10pack RSAP10Gen(String keyLen, String DN) throws Exception {
+		P10pack P10p = new P10pack();
+		P10p.pwd = null;
+		P10p.keyIndex = "";
+		P10p.P10 = "ERROR";
+		if (!keyLen.equals("1024") && !keyLen.equals("2048") && !keyLen.equals("4096"))
+			return P10p;
+		Display.getDefault().asyncExec(new Runnable() {
+			public void run() {
+				pwdDlg pd = new pwdDlg(Display.getDefault().getActiveShell(), P10p);
+				pd.setBlockOnOpen(true);
+				pd.open();
+			}
+		});
 
-		return null;
+		while (P10p.pwd == null) {
+			Thread.sleep(200);
+		}
+
+		P10p.P10 = P10p.pwd;
+		return P10p;
 	}
 
 }
