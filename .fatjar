@@ -1,0 +1,14 @@
+#Fat Jar Configuration File
+#Sun Jan 14 14:03:15 CST 2018
+onejar.license.required=false
+manifest.classpath=
+manifest.removesigners=true
+onejar.checkbox=false
+jarname=C\:\\WORK\\LocalSign\\LocalSignServ\\application\\LocalSign.jar
+manifest.mergeall=false
+manifest.mainclass=gps949.LSEntry
+manifest.file=<createnew>
+jarname.isextern=true
+onejar.expand=
+excludes=
+includes=
