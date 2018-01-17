@@ -15,6 +15,8 @@ import org.eclipse.swt.widgets.Display;
 
 import com.sun.org.apache.xml.internal.security.utils.Base64;
 
+import gps949.block.P10pack;
+import gps949.block.P7Sig;
 import sun.security.mscapi.SunMSCAPI;
 import sun.security.pkcs.ContentInfo;
 import sun.security.pkcs.PKCS7;
@@ -117,4 +119,10 @@ public class CAPI {
 		}
 
 	}
+
+	public static P10pack RSAP10Gen(String keyLen, String DN) {
+
+		return null;
+	}
+
 }
