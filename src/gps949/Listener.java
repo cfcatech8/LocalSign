@@ -18,6 +18,7 @@ import com.sun.net.httpserver.HttpsParameters;
 import com.sun.net.httpserver.HttpsServer;
 
 import gps949.endpoints.RSAP10Gen;
+import gps949.endpoints.RSAP12Gen;
 import gps949.endpoints.RSAP7DetachSign;
 
 public class Listener {
@@ -75,6 +76,7 @@ public class Listener {
 			});
 			httpsServer.createContext("/RSAP7DetachSign", new RSAP7DetachSign());
 			httpsServer.createContext("/RSAP10Gen", new RSAP10Gen());
+			httpsServer.createContext("/RSAP12Gen", new RSAP12Gen());
 			httpsServer.setExecutor(
 					new ThreadPoolExecutor(2, 4, 60, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(100)));
 			httpsServer.start();

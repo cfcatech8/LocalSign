@@ -1,29 +1,36 @@
 package gps949;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintStream;
 import java.math.BigInteger;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.KeyStore;
 import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.security.Security;
 import java.security.Signature;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Random;
 
 import org.eclipse.swt.widgets.Display;
 
-import com.sun.org.apache.xml.internal.security.utils.Base64;
-
 import gps949.block.P10pack;
+import gps949.block.P12pack;
 import gps949.block.P7Sig;
 import gps949.dlg.DlgChannel;
 import gps949.dlg.pwdDlg;
@@ -33,7 +40,6 @@ import sun.security.pkcs.ContentInfo;
 import sun.security.pkcs.PKCS7;
 import sun.security.pkcs.SignerInfo;
 import sun.security.pkcs10.PKCS10;
-import sun.security.tools.keytool.CertAndKeyGen;
 import sun.security.util.DerOutputStream;
 import sun.security.x509.AlgorithmId;
 import sun.security.x509.X500Name;
@@ -76,7 +82,7 @@ public class CAPI {
 		// System.out.println(Base64.encode(encodedPKCS7));
 		sig.DN = cert.getSubjectDN().toString();
 		sig.SN = cert.getSerialNumber().toString(16);
-		sig.Signature = Base64.encode(encodedPKCS7).replaceAll("\\s+", "");
+		sig.Signature = Base64.getEncoder().encodeToString(encodedPKCS7).replaceAll("\\s+", "");
 		ac.alias = null;
 		return sig;
 	}
@@ -134,28 +140,20 @@ public class CAPI {
 	}
 
 	private static boolean _RSAP10Gen(String _keyLen, String _DN, P10pack _P10) throws Exception {
-		// Gen the keypair and the temp cert
-		KeyStore ks = KeyStore.getInstance("PKCS12");
-		ks.load(null, null);
-		CertAndKeyGen ckGen = new CertAndKeyGen("RSA", "SHA256WithRSA");
-		ckGen.generate(Integer.parseInt(_keyLen));
-		PrivateKey privKey = ckGen.getPrivateKey();
-		PublicKey pubKey = ckGen.getPublicKeyAnyway();
-		X509Certificate cert = ckGen.getSelfCertificate(new X500Name("CN=LocalSignKeyPair, C=CN"),
-				(long) 365 * 24 * 3600);
-		X509Certificate[] chain = new X509Certificate[1];
-		chain[0] = cert;
-		ks.setKeyEntry("LocalSignKeyPair", privKey, _P10.pwd.toCharArray(), chain);
+		KeyPairGenerator keyPairGenerator = null;
+		keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+		keyPairGenerator.initialize(Integer.parseInt(_keyLen));
+		KeyPair kp = keyPairGenerator.generateKeyPair();
 
 		// Gen the P10 with the private key
 		X500Name x500Name = new X500Name(_DN);
 		Signature sig = Signature.getInstance("SHA256WithRSA");
-		sig.initSign(privKey);
+		sig.initSign(kp.getPrivate());
 		ByteArrayOutputStream outStream = new ByteArrayOutputStream();
 		PrintStream printStream = new PrintStream(outStream);
 		byte[] csrBytes = null;
 		try {
-			PKCS10 pkcs10 = new PKCS10(pubKey);
+			PKCS10 pkcs10 = new PKCS10(kp.getPublic());
 			// pkcs10.encodeAndSign(new X500Signer(sig, x500Name)); // For Java 6
 			pkcs10.encodeAndSign(x500Name, sig); // For Java 7 and Java 8
 			pkcs10.print(printStream);
@@ -177,7 +175,7 @@ public class CAPI {
 		if (csrBytes == null) {
 			return false;
 		} else {
-			_P10.P10 = new String(csrBytes).replaceAll("-----.*-----\r\n", "").replaceAll("\r\n", "");
+			_P10.P10 = new String(csrBytes).replaceAll("---.*---\r\n", "").replaceAll("\r\n", "");
 
 			StringBuilder randki = new StringBuilder();
 			Random rand = new Random();
@@ -202,22 +200,13 @@ public class CAPI {
 			// 如果文件夹不存在则创建
 			if (!file.exists() && !file.isDirectory())
 				file.mkdir();
-			ks.store(new FileOutputStream(System.getProperty("user.dir") + "\\tempKP\\" + _P10.keyIndex + ".k"),
-					_P10.pwd.toCharArray());
 
 			ObjectOutputStream oout = new ObjectOutputStream(new BufferedOutputStream(
 					new FileOutputStream(System.getProperty("user.dir") + "\\tempKP\\" + _P10.keyIndex + ".kp")));
 			oout.writeObject(_P10.pwd);
-			oout.writeObject(privKey);
+			oout.writeObject(kp.getPrivate());
 			oout.close();
 
-			// Below code will be used for the cert install part later
-			/*
-			 * InputStream in = new FileInputStream(System.getProperty("user.dir") +
-			 * "\\tempKP\\" + _P10.keyIndex + ".kp"); ObjectInputStream oin = new
-			 * ObjectInputStream(new BufferedInputStream(in)); String pwd = (String)
-			 * oin.readObject(); PrivateKey pk = (PrivateKey) oin.readObject(); oin.close();
-			 */
 			return true;
 		}
 
@@ -243,6 +232,59 @@ public class CAPI {
 		}
 		_RSAP10Gen(keyLen, DN, P10p);
 		return P10p;
+	}
+
+	public static P12pack RSAP12Gen(String _keyIndex, String _cert) throws Exception {
+		P12pack P12p = new P12pack();
+		P12p.pwd = null;
+		P12p.keyIndex = _keyIndex;
+		P12p.cert = _cert;
+		P12p.P12 = "ERROR";
+
+		File file = new File(System.getProperty("user.dir") + "\\tempKP");
+		if (!file.exists() && !file.isDirectory()) {
+			// No tempKP directory found ERROR
+			return P12p;
+		}
+		file = new File(System.getProperty("user.dir") + "\\tempKP\\" + P12p.keyIndex + ".kp");
+		if (!file.exists()) {
+			// No kp file found ERROR
+			return P12p;
+		}
+
+		InputStream in = new FileInputStream(System.getProperty("user.dir") + "\\tempKP\\" + P12p.keyIndex + ".kp");
+		ObjectInputStream oin = new ObjectInputStream(new BufferedInputStream(in));
+		String pwd = (String) oin.readObject();
+		PrivateKey privKey = (PrivateKey) oin.readObject();
+		oin.close();
+		P12p.pwd = pwd;
+		file.delete();
+
+		KeyStore ks = KeyStore.getInstance("PKCS12");
+		ks.load(null, null);
+		byte encodedCert[] = Base64.getDecoder()
+				.decode(_cert.replaceAll("---.*---", "").replace("\n\r", "").replace(" ", "").replace("\t", ""));
+		ByteArrayInputStream inputStream = new ByteArrayInputStream(encodedCert);
+		CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+		X509Certificate cert = (X509Certificate) certFactory.generateCertificate(inputStream);
+		X509Certificate[] chain = new X509Certificate[1];
+		chain[0] = cert;
+		ks.setKeyEntry("LocalSignKeyPair", privKey, pwd.toCharArray(), chain);
+		FileOutputStream fos = new FileOutputStream(
+				System.getProperty("user.dir") + "\\tempKP\\" + P12p.keyIndex + ".pfx");
+		ks.store(fos, P12p.pwd.toCharArray());
+		fos.close();
+
+		file = new File(System.getProperty("user.dir") + "\\tempKP\\" + P12p.keyIndex + ".pfx");
+		FileInputStream fin = null;
+		fin = new FileInputStream(file);
+		byte[] fileContent = new byte[(int) file.length()];
+		fin.read(fileContent);
+		P12p.P12 = Base64.getEncoder().encodeToString(fileContent);
+		fin.close();
+		file.delete();
+
+		return P12p;
 	}
 
 }

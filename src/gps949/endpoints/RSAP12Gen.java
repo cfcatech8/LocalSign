@@ -11,29 +11,29 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpsExchange;
 
 import gps949.CAPI;
-import gps949.block.P10pack;
-import gps949.txrx.rxRSAP10Gen;
-import gps949.txrx.txRSAP10Gen;
+import gps949.block.P12pack;
+import gps949.txrx.rxRSAP12Gen;
+import gps949.txrx.txRSAP12Gen;
 
-public class RSAP10Gen implements HttpHandler {
+public class RSAP12Gen implements HttpHandler {
 
 	@Override
 	public void handle(HttpExchange t) throws IOException {
 		Gson gson = new Gson();
-		txRSAP10Gen res = new txRSAP10Gen();
-		res.P10 = "ERROR";
+		txRSAP12Gen res = new txRSAP12Gen();
+		res.P12 = "ERROR";
 		HttpsExchange httpsExchange = (HttpsExchange) t;
 		String reqContent = "";
 		if (httpsExchange.getRequestMethod().equals("POST")) {
 			reqContent = IOUtils.toString(httpsExchange.getRequestBody(), "UTF-8");
 
-			rxRSAP10Gen req = gson.fromJson(reqContent, rxRSAP10Gen.class);
+			rxRSAP12Gen req = gson.fromJson(reqContent, rxRSAP12Gen.class);
 			if (req != null) {
 				try {
-					P10pack P10p = CAPI.RSAP10Gen(req.keyLen, req.DN);
-					res.keyIndex = P10p.keyIndex;
-					res.P10 = P10p.P10;
+					P12pack P12p = CAPI.RSAP12Gen(req.keyIndex, req.cert);
+					res.P12 = P12p.P12;
 				} catch (Exception e) {
+					e.printStackTrace();
 				}
 			}
 		}
