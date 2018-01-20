@@ -221,7 +221,7 @@ public class CAPI {
 			return P10p;
 		Display.getDefault().asyncExec(new Runnable() {
 			public void run() {
-				pwdDlg pd = new pwdDlg(Display.getDefault().getActiveShell(), P10p);
+				pwdDlg pd = new pwdDlg(Display.getCurrent().getActiveShell(), P10p);
 				pd.setBlockOnOpen(true);
 				pd.open();
 			}
@@ -269,7 +269,7 @@ public class CAPI {
 		X509Certificate cert = (X509Certificate) certFactory.generateCertificate(inputStream);
 		X509Certificate[] chain = new X509Certificate[1];
 		chain[0] = cert;
-		ks.setKeyEntry("LocalSignKeyPair", privKey, pwd.toCharArray(), chain);
+		ks.setKeyEntry(P12p.keyIndex, privKey, pwd.toCharArray(), chain);
 		FileOutputStream fos = new FileOutputStream(
 				System.getProperty("user.dir") + "\\tempKP\\" + P12p.keyIndex + ".pfx");
 		ks.store(fos, P12p.pwd.toCharArray());
@@ -280,9 +280,28 @@ public class CAPI {
 		fin = new FileInputStream(file);
 		byte[] fileContent = new byte[(int) file.length()];
 		fin.read(fileContent);
-		P12p.P12 = Base64.getEncoder().encodeToString(fileContent);
 		fin.close();
 		file.delete();
+
+		Display.getDefault().asyncExec(new Runnable() {
+			public void run() {
+				new pfxSaver(P12p);
+			}
+		});
+
+		while (P12p.P12.equals("ERROR")) {
+			Thread.sleep(500);
+		}
+
+		if (!P12p.P12.equals("")) {
+			file = new File(P12p.P12);
+			file.createNewFile();
+			fos = new FileOutputStream(file);
+			fos.write(fileContent);
+			fos.flush();
+			fos.close();
+			P12p.P12 = "OK";
+		}
 
 		return P12p;
 	}
